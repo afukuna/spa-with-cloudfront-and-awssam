@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template for SPA
+
+Resources:
+
+  SPAFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: api/
+      Handler: index.lambdaHandler
+      Runtime: nodejs14.x
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: AllAtOnce
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DataTable
+      Policies:
+      - AWSLambdaExecute
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Events:
+        WebPage:
+          Type: Api
+          Properties:
+            Path: /api
+            Method: get
+
+  S3PagesBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+
+  S3ImagesBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+
+  S3PagesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3PagesBucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: !Sub arn:aws:s3:::${S3PagesBucket}/*
+            Principal:
+              AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginAccessIdentity}
+
+  S3ImagesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3ImagesBucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: !Sub arn:aws:s3:::${S3ImagesBucket}/*
+            Principal:
+              AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginAccessIdentity}
+
+  SPADistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - Id: S3PagesOrigin
+          DomainName: !GetAtt S3PagesBucket.DomainName
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
+        - Id: S3ImagesOrigin
+          DomainName: !GetAtt S3ImagesBucket.DomainName
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
+        - Id: APIOrigin
+          DomainName: !Sub "${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com"
+          CustomOriginConfig:
+            OriginProtocolPolicy: "https-only"
+          OriginPath: /Prod
+        Enabled: true
+        DefaultRootObject: index.html
+        Comment: !Sub ${AWS::StackName} distribution
+        DefaultCacheBehavior:
+          TargetOriginId: S3PagesOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+        CacheBehaviors:
+          - AllowedMethods:
+            - GET
+            - HEAD
+            TargetOriginId: S3ImagesOrigin
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            ViewerProtocolPolicy: allow-all
+            PathPattern: images/*
+          - AllowedMethods:
+            - GET
+            - HEAD
+            TargetOriginId: APIOrigin
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            ViewerProtocolPolicy: allow-all
+            PathPattern: api
+
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Ref AWS::StackName
+
+  DataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: data
+      AttributeDefinitions: 
+        - AttributeName: Id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: Id
+          KeyType: HASH
+      ProvisionedThroughput: 
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+
+Outputs:
+  URL:
+    Value: !Join [ "", [ "https://", !GetAtt [ SPADistribution, DomainName ]]]
+  S3PagesBucketName:
+    Value: !Ref S3PagesBucket
+  S3ImagesBucketName:
+    Value: !Ref S3ImagesBucket
