@@ -1,6 +1,9 @@
 # spa-with-cloudfront-and-awssam
 SPA with cloudfront and aws sam
 
+# Arichitecture
+<img width="489" alt="architecture" src="https://user-images.githubusercontent.com/8767514/153780350-3b61607e-016a-4ea1-891f-c5fa2e84e1b1.png">
+
 # Make
 ```bash
 $ git clone https://github.com/afukuna/spa-with-cloudfront-and-awssam.git
