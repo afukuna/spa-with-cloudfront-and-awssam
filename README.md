@@ -32,14 +32,14 @@ $ aws dynamodb put-item --table-name data --item '{ "Id": { "S": "4" }, "Image":
 $ aws dynamodb put-item --table-name data --item '{ "Id": { "S": "5" }, "Image": { "S": "/images/noimage-256.png" }, "Name": { "S": "Name" }, "Detail": { "S": "Detail" }}'
 ```
 
-# UPDATE SAM
+# Update API with SAM
 ```bash
 $ sam build
 $ sam package --s3-bucket spa-sam-asssets-1234567890 --output-template-file out.yaml
 $ sam deploy --template-file out.yaml --capabilities CAPABILITY_IAM --stack-name spa-sam
 ```
 
-# UPDATE page
+# Update page
 ```bash
 $ cd page
 $ yarn install
